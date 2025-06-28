@@ -16,7 +16,8 @@
 ## 运行方式
 
 1. 安装依赖：`pip install -r requirements.txt`
-2. 运行主程序：`python main.py`
+2. 超参数调优：`python auto_optuna.py`
+3. 运行程序(如knn)：`python main.py knn`
 
 ## 协作与算法实现说明
 

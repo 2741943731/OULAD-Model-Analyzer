@@ -1,0 +1,31 @@
+{
+    "mlp": {
+        "n_units": 31,
+        "activation": "tanh",
+        "alpha": 5.913507823620497e-05,
+        "solver": "adam",
+        "max_iter": 400
+    },
+    "random_forest": {
+        "n_estimators": 200,
+        "max_depth": 15,
+        "min_samples_split": 9,
+        "min_samples_leaf": 4
+    },
+    "logistic_regression": {
+        "C": 0.00708002250117964,
+        "solver": "lbfgs",
+        "max_iter": 200
+    },
+    "knn": {
+        "n_neighbors": 10,
+        "weights": "distance",
+        "metric": "manhattan"
+    },
+    "decision_tree": {
+        "criterion": "entropy",
+        "max_depth": 8,
+        "min_samples_split": 7,
+        "min_samples_leaf": 4
+    }
+}

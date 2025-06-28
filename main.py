@@ -54,7 +54,14 @@ def main():
         else:
             model_names = all_model_names
     # 训练与评估
-    results = train_and_evaluate(X_train, y_train, X_test, y_test, model_names)
+    # 从文件读取最优参数
+    import json
+    try:
+        with open("src/best_params.json", "r") as f:
+            best_params = json.load(f)
+    except Exception:
+        best_params = None
+    results = train_and_evaluate(X_train, y_train, X_test, y_test, model_names, best_params=best_params)
     print("各模型评估结果：")
     for name, metrics in results.items():
         print(f"{name}: 准确率={metrics['accuracy']:.4f}")
