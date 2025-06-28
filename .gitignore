@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data folder (ignore large raw data)
+data/
+
+# Processed outputs
+df_processed.csv
+processed_data.csv
+
+# Results and figures
+results/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+env/
+venv/
+.env
+
+# VSCode settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
