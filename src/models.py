@@ -1,7 +1,7 @@
 """
 所有算法实现，每人负责2个算法
 """
-
+from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 import numpy as np
 
-# ====== 自定义逻辑回归实现 ======
+# ====== 逻辑回归 ======
 class CustomLogisticRegression:
     def __init__(self, penalty='l2', C=1.0, solver='lbfgs', max_iter=100, tol=1e-4, learning_rate=0.1):
         self.penalty = penalty
@@ -19,46 +19,50 @@ class CustomLogisticRegression:
         self.tol = tol
         self.learning_rate = learning_rate
 
+    def _sigmoid(self, z):
+        # numerically stable sigmoid
+        return 0.5 * (1 + np.tanh(0.5 * z))
+
     def fit(self, X, y):
-        X_mat = np.array(X)
-        y_vec = np.array(y)
+        X_mat = np.asarray(X, dtype=float)
+        y_vec = np.asarray(y, dtype=float)
         n_samples, n_features = X_mat.shape
         # 添加截距项
-        X_bias = np.hstack([np.ones((n_samples, 1)), X_mat])
+        X_bias = np.hstack([np.ones((n_samples, 1), dtype=float), X_mat])
         # 初始化权重
         w = np.zeros(n_features + 1)
         for i in range(self.max_iter):
             z = X_bias.dot(w)
-            p = 1 / (1 + np.exp(-z))
+            p = self._sigmoid(z)
             # 梯度计算，加入 L2 正则
-            grad = (X_bias.T.dot(y_vec - p) - w / self.C) / n_samples
+            grad = (X_bias.T.dot(y_vec - p) - w / self.C) / float(n_samples)
             w_new = w + self.learning_rate * grad
             if np.linalg.norm(w_new - w, ord=1) < self.tol:
                 w = w_new
                 break
             w = w_new
         # 保存结果
-        self.coef_ = w[1:].reshape(1, -1)
+        self.coef_ = w[1:].reshape(1, -1).astype(float)
         self.intercept_ = w[0]
         return self
 
     def predict_proba(self, X):
-        X_mat = np.array(X)
+        X_mat = np.asarray(X, dtype=float)
         z = X_mat.dot(self.coef_.T) + self.intercept_
-        p = 1 / (1 + np.exp(-z))
+        p = self._sigmoid(z)
         return np.hstack([(1 - p), p])
 
     def predict(self, X):
         proba = self.predict_proba(X)[:, 1]
         return (proba >= 0.5).astype(int)
 
-# ====== 修改 logistic_regression_model 返回自定义类 ======
 def logistic_regression_model(**kwargs):
     """
     自定义实现逻辑回归，参数与 sklearn 接口一致
     参数可通过 kwargs 传递，如 penalty, C, solver, max_iter 等
     """
     return CustomLogisticRegression(**kwargs)
+    # return LogisticRegression(**kwargs)
 
 # ====== KNN分类器 ======
 def knn_model(**kwargs):

@@ -4,6 +4,7 @@ OULAD数据集专用数据预处理与特征工程（多表融合，兼容官方
 
 import pandas as pd
 import os
+from sklearn.preprocessing import StandardScaler
 
 def load_data(data_dir="data/anonymisedData", n_weeks=4):
     """
@@ -78,4 +79,11 @@ def preprocess_data(df):
     df = df.dropna(subset=feature_cols + ["label"])
     # 类别特征独热编码
     df = pd.get_dummies(df[feature_cols + ["label"]], columns=["age_band", "gender", "imd_band", "disability"])
-    return df
+    # 特征标准化
+    feature_cols_all = [c for c in df.columns if c != 'label']
+    scaler = StandardScaler()
+    X = df[feature_cols_all]
+    X_scaled = scaler.fit_transform(X)
+    df_scaled = pd.DataFrame(X_scaled, columns=feature_cols_all, index=df.index)
+    df_scaled['label'] = df['label'].values
+    return df_scaled
