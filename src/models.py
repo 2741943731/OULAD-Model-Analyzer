@@ -56,6 +56,14 @@ class CustomLogisticRegression:
         proba = self.predict_proba(X)[:, 1]
         return (proba >= 0.5).astype(int)
 
+    def score(self, X, y):
+        """
+        计算准确率，与 sklearn 接口一致
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y_true)
+
 def logistic_regression_model(**kwargs):
     """
     自定义实现逻辑回归，参数与 sklearn 接口一致

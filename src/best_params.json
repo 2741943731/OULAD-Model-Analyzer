@@ -1,0 +1,19 @@
+{
+    "random_forest": {
+        "n_estimators": 150,
+        "max_depth": 15,
+        "min_samples_split": 2,
+        "min_samples_leaf": 3
+    },
+    "logistic_regression": {
+        "C": 0.08523919310801689,
+        "solver": "liblinear",
+        "max_iter": 500
+    },
+    "decision_tree": {
+        "criterion": "gini",
+        "max_depth": 8,
+        "min_samples_split": 3,
+        "min_samples_leaf": 3
+    }
+}
