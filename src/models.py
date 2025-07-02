@@ -8,69 +8,408 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 import numpy as np
+import random
+from collections import Counter
 
-# ====== 逻辑回归 ======
-class CustomLogisticRegression:
-    def __init__(self, penalty='l2', C=1.0, solver='lbfgs', max_iter=100, tol=1e-4, learning_rate=0.1):
-        self.penalty = penalty
-        self.C = C
-        self.solver = solver
-        self.max_iter = max_iter
-        self.tol = tol
-        self.learning_rate = learning_rate
-
-    def _sigmoid(self, z):
-        # numerically stable sigmoid
-        return 0.5 * (1 + np.tanh(0.5 * z))
-
+class CustomDecisionTree:
+    """
+    自定义决策树分类器实现
+    支持关键参数调整：criterion, max_depth, min_samples_split, min_samples_leaf
+    """
+    def __init__(self, criterion='gini', max_depth=None, min_samples_split=2, 
+                 min_samples_leaf=1, random_state=None):
+        self.criterion = criterion
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
+        self.random_state = random_state
+        self.tree = None
+        self.feature_importances_ = None
+        
+        if random_state is not None:
+            np.random.seed(random_state)
+            random.seed(random_state)
+    
+    def _gini(self, y):
+        """计算基尼不纯度"""
+        if len(y) == 0:
+            return 0
+        classes, counts = np.unique(y, return_counts=True)
+        probabilities = counts / len(y)
+        return 1 - np.sum(probabilities ** 2)
+    
+    def _entropy(self, y):
+        """计算信息熵"""
+        if len(y) == 0:
+            return 0
+        classes, counts = np.unique(y, return_counts=True)
+        probabilities = counts / len(y)
+        # 避免log(0)
+        probabilities = probabilities[probabilities > 0]
+        return -np.sum(probabilities * np.log2(probabilities))
+    
+    def _impurity(self, y):
+        """根据criterion计算不纯度"""
+        if self.criterion == 'gini':
+            return self._gini(y)
+        elif self.criterion == 'entropy':
+            return self._entropy(y)
+        else:
+            raise ValueError(f"Unknown criterion: {self.criterion}")
+    
+    def _information_gain(self, X, y, feature_idx, threshold):
+        """计算信息增益"""
+        parent_impurity = self._impurity(y)
+        
+        # 分割数据
+        left_mask = X[:, feature_idx] <= threshold
+        right_mask = ~left_mask
+        
+        y_left, y_right = y[left_mask], y[right_mask]
+        
+        if len(y_left) == 0 or len(y_right) == 0:
+            return 0
+        
+        # 计算加权不纯度
+        n = len(y)
+        weighted_impurity = (len(y_left) / n) * self._impurity(y_left) + \
+                           (len(y_right) / n) * self._impurity(y_right)
+        
+        return parent_impurity - weighted_impurity
+    
+    def _best_split(self, X, y):
+        """找到最佳分割点"""
+        best_gain = 0
+        best_feature = None
+        best_threshold = None
+        
+        n_features = X.shape[1]
+        
+        for feature_idx in range(n_features):
+            # 获取该特征的唯一值作为候选阈值
+            thresholds = np.unique(X[:, feature_idx])
+            
+            for threshold in thresholds:
+                gain = self._information_gain(X, y, feature_idx, threshold)
+                
+                if gain > best_gain:
+                    best_gain = gain
+                    best_feature = feature_idx
+                    best_threshold = threshold
+        
+        return best_feature, best_threshold, best_gain
+    
+    def _build_tree(self, X, y, depth=0):
+        """递归构建决策树"""
+        # 停止条件
+        n_samples = len(y)
+        
+        if (n_samples < self.min_samples_split or 
+            (self.max_depth is not None and depth >= self.max_depth) or
+            len(np.unique(y)) == 1):
+            # 返回叶节点
+            leaf_value = Counter(y).most_common(1)[0][0]
+            return {'leaf': True, 'value': leaf_value, 'samples': n_samples}
+        
+        # 找到最佳分割
+        feature_idx, threshold, gain = self._best_split(X, y)
+        
+        if feature_idx is None or gain == 0:
+            # 无法分割，返回叶节点
+            leaf_value = Counter(y).most_common(1)[0][0]
+            return {'leaf': True, 'value': leaf_value, 'samples': n_samples}
+        
+        # 分割数据
+        left_mask = X[:, feature_idx] <= threshold
+        right_mask = ~left_mask
+        
+        X_left, y_left = X[left_mask], y[left_mask]
+        X_right, y_right = X[right_mask], y[right_mask]
+        
+        # 检查最小叶子节点样本数
+        if len(y_left) < self.min_samples_leaf or len(y_right) < self.min_samples_leaf:
+            leaf_value = Counter(y).most_common(1)[0][0]
+            return {'leaf': True, 'value': leaf_value, 'samples': n_samples}
+        
+        # 递归构建子树
+        left_subtree = self._build_tree(X_left, y_left, depth + 1)
+        right_subtree = self._build_tree(X_right, y_right, depth + 1)
+        
+        return {
+            'leaf': False,
+            'feature': feature_idx,
+            'threshold': threshold,
+            'left': left_subtree,
+            'right': right_subtree,
+            'samples': n_samples,
+            'gain': gain
+        }
+    
     def fit(self, X, y):
-        X_mat = np.asarray(X, dtype=float)
-        y_vec = np.asarray(y, dtype=float)
-        n_samples, n_features = X_mat.shape
-        # 添加截距项
-        X_bias = np.hstack([np.ones((n_samples, 1), dtype=float), X_mat])
-        # 初始化权重
-        w = np.zeros(n_features + 1)
-        for i in range(self.max_iter):
-            z = X_bias.dot(w)
-            p = self._sigmoid(z)
-            # 梯度计算，加入 L2 正则
-            grad = (X_bias.T.dot(y_vec - p) - w / self.C) / float(n_samples)
-            w_new = w + self.learning_rate * grad
-            if np.linalg.norm(w_new - w, ord=1) < self.tol:
-                w = w_new
-                break
-            w = w_new
-        # 保存结果
-        self.coef_ = w[1:].reshape(1, -1).astype(float)
-        self.intercept_ = w[0]
+        """训练决策树"""
+        X = np.array(X)
+        y = np.array(y)
+        
+        self.tree = self._build_tree(X, y)
+        self._calculate_feature_importances(X)
         return self
-
-    def predict_proba(self, X):
-        X_mat = np.asarray(X, dtype=float)
-        z = X_mat.dot(self.coef_.T) + self.intercept_
-        p = self._sigmoid(z)
-        return np.hstack([(1 - p), p])
-
+    
+    def _calculate_feature_importances(self, X):
+        """计算特征重要性"""
+        n_features = X.shape[1]
+        importances = np.zeros(n_features)
+        
+        def traverse(node, n_samples):
+            if node['leaf']:
+                return
+            
+            feature_idx = node['feature']
+            gain = node['gain']
+            samples = node['samples']
+            
+            # 特征重要性 = (样本数 / 总样本数) * 信息增益
+            importances[feature_idx] += (samples / n_samples) * gain
+            
+            traverse(node['left'], n_samples)
+            traverse(node['right'], n_samples)
+        
+        traverse(self.tree, X.shape[0])
+        
+        # 归一化
+        if np.sum(importances) > 0:
+            importances = importances / np.sum(importances)
+        
+        self.feature_importances_ = importances
+    
+    def _predict_sample(self, sample):
+        """预测单个样本"""
+        node = self.tree
+        
+        while not node['leaf']:
+            if sample[node['feature']] <= node['threshold']:
+                node = node['left']
+            else:
+                node = node['right']
+        
+        return node['value']
+    
     def predict(self, X):
-        proba = self.predict_proba(X)[:, 1]
-        return (proba >= 0.5).astype(int)
-
+        """预测多个样本"""
+        X = np.array(X)
+        return np.array([self._predict_sample(sample) for sample in X])
+    
+    def predict_proba(self, X):
+        """预测概率（简化实现）"""
+        predictions = self.predict(X)
+        unique_classes = np.unique(predictions)
+        
+        # 简化：直接返回0或1的概率
+        probas = np.zeros((len(predictions), len(unique_classes)))
+        for i, pred in enumerate(predictions):
+            class_idx = np.where(unique_classes == pred)[0][0]
+            probas[i, class_idx] = 1.0
+        
+        return probas
+    
     def score(self, X, y):
-        """
-        计算准确率，与 sklearn 接口一致
-        """
-        y_true = np.asarray(y)
-        y_pred = self.predict(X)
-        return np.mean(y_pred == y_true)
+        """计算准确率"""
+        predictions = self.predict(X)
+        return np.mean(predictions == y)
+    
+    
+class CustomRandomForest:
+    """
+    自定义随机森林分类器实现
+    支持关键参数调整：n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features
+    """
+    def __init__(self, n_estimators=100, max_depth=None, min_samples_split=2,
+                 min_samples_leaf=1, max_features='sqrt', random_state=None):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
+        self.max_features = max_features
+        self.random_state = random_state
+        self.trees = []
+        self.feature_importances_ = None
+        
+        if random_state is not None:
+            np.random.seed(random_state)
+            random.seed(random_state)
+    
+    def _bootstrap_sample(self, X, y):
+        """Bootstrap抽样"""
+        n_samples = X.shape[0]
+        indices = np.random.choice(n_samples, n_samples, replace=True)
+        return X[indices], y[indices]
+    
+    def _get_max_features(self, n_features):
+        """获取每棵树使用的最大特征数"""
+        if self.max_features == 'sqrt':
+            return int(np.sqrt(n_features))
+        elif self.max_features == 'log2':
+            return int(np.log2(n_features))
+        elif isinstance(self.max_features, int):
+            return min(self.max_features, n_features)
+        elif isinstance(self.max_features, float):
+            return int(self.max_features * n_features)
+        else:
+            return n_features
+    
+    def fit(self, X, y):
+        """训练随机森林"""
+        X = np.array(X)
+        y = np.array(y)
+        
+        n_features = X.shape[1]
+        max_features = self._get_max_features(n_features)
+        
+        self.trees = []
+        
+        for i in range(self.n_estimators):
+            # Bootstrap抽样
+            X_bootstrap, y_bootstrap = self._bootstrap_sample(X, y)
+            
+            # 随机选择特征
+            feature_indices = np.random.choice(n_features, max_features, replace=False)
+            X_subset = X_bootstrap[:, feature_indices]
+            
+            # 训练决策树
+            tree = CustomDecisionTree(
+                criterion='gini',
+                max_depth=self.max_depth,
+                min_samples_split=self.min_samples_split,
+                min_samples_leaf=self.min_samples_leaf,
+                random_state=self.random_state + i if self.random_state else None
+            )
+            tree.fit(X_subset, y_bootstrap)
+            
+            # 保存树和对应的特征索引
+            self.trees.append({
+                'tree': tree,
+                'features': feature_indices
+            })
+        
+        # 计算特征重要性
+        self._calculate_feature_importances(n_features)
+        
+        return self
+    
+    def _calculate_feature_importances(self, n_features):
+        """计算特征重要性"""
+        importances = np.zeros(n_features)
+        
+        for tree_info in self.trees:
+            tree = tree_info['tree']
+            features = tree_info['features']
+            
+            # 将树的特征重要性映射回原始特征空间
+            for i, feature_idx in enumerate(features):
+                importances[feature_idx] += tree.feature_importances_[i]
+        
+        # 归一化
+        if np.sum(importances) > 0:
+            importances = importances / np.sum(importances)
+        
+        self.feature_importances_ = importances
+    
+    def predict(self, X):
+        """预测多个样本"""
+        X = np.array(X)
+        predictions = []
+        
+        for tree_info in self.trees:
+            tree = tree_info['tree']
+            features = tree_info['features']
+            
+            # 使用相同的特征子集进行预测
+            X_subset = X[:, features]
+            tree_predictions = tree.predict(X_subset)
+            predictions.append(tree_predictions)
+        
+        # 投票决定最终预测
+        predictions = np.array(predictions).T
+        final_predictions = []
+        
+        for sample_predictions in predictions:
+            vote_counts = Counter(sample_predictions)
+            final_predictions.append(vote_counts.most_common(1)[0][0])
+        
+        return np.array(final_predictions)
+    
+    def predict_proba(self, X):
+        """预测概率"""
+        X = np.array(X)
+        all_predictions = []
+        
+        for tree_info in self.trees:
+            tree = tree_info['tree']
+            features = tree_info['features']
+            
+            X_subset = X[:, features]
+            tree_predictions = tree.predict(X_subset)
+            all_predictions.append(tree_predictions)
+        
+        # 计算每个类别的投票比例
+        all_predictions = np.array(all_predictions).T
+        unique_classes = np.unique(np.concatenate(all_predictions))
+        
+        probas = np.zeros((len(X), len(unique_classes)))
+        
+        for i, sample_predictions in enumerate(all_predictions):
+            vote_counts = Counter(sample_predictions)
+            total_votes = len(sample_predictions)
+            
+            for j, class_label in enumerate(unique_classes):
+                probas[i, j] = vote_counts.get(class_label, 0) / total_votes
+        
+        return probas
+    
+    def score(self, X, y):
+        """计算准确率"""
+        predictions = self.predict(X)
+        return np.mean(predictions == y)
+    
+    
+# ====== 决策树分类器 ======
+def decision_tree_model(**kwargs):
+    """
+    决策树分类器 - 支持自定义实现和sklearn实现
+    默认使用自定义实现
+    """
+    # 可以通过参数选择使用自定义实现还是sklearn实现
+    use_custom = kwargs.pop('use_custom', True)
+    
+    if use_custom:
+        return CustomDecisionTree(**kwargs)
+    else:
+        return DecisionTreeClassifier(**kwargs)
 
+# ====== 随机森林分类器 ======
+def random_forest_model(**kwargs):
+    """
+    随机森林分类器 - 支持自定义实现和sklearn实现streamlit run auto_viz.py
+    默认使用自定义实现
+    """
+    # 可以通过参数选择使用自定义实现还是sklearn实现
+    use_custom = kwargs.pop('use_custom', True)
+    
+    if use_custom:
+        return CustomRandomForest(**kwargs)
+    else:
+        return RandomForestClassifier(**kwargs)
+
+
+
+
+# ====== 逻辑回归 =====
 def logistic_regression_model(**kwargs):
     """
     自定义实现逻辑回归，参数与 sklearn 接口一致
     参数可通过 kwargs 传递，如 penalty, C, solver, max_iter 等
     """
-    return CustomLogisticRegression(**kwargs)
-    # return LogisticRegression(**kwargs)
+    # return CustomLogisticRegression(**kwargs)
+    return LogisticRegression(**kwargs)
 
 # ====== KNN分类器 ======
 def knn_model(**kwargs):
@@ -81,14 +420,6 @@ def knn_model(**kwargs):
     """
     return KNeighborsClassifier(**kwargs)
 
-# ====== 决策树分类器 ======
-def decision_tree_model(**kwargs):
-    """
-    决策树分类器
-    参数可通过kwargs传递，如 criterion, max_depth, min_samples_split 等
-    返回：sklearn的DecisionTreeClassifier实例
-    """
-    return DecisionTreeClassifier(**kwargs)
 
 # ====== 支持向量机 ======
 def svm_model(**kwargs):
@@ -100,14 +431,7 @@ def svm_model(**kwargs):
     kwargs.setdefault('probability', True)
     return SVC(**kwargs)
 
-# ====== 随机森林分类器 ======
-def random_forest_model(**kwargs):
-    """
-    随机森林分类器
-    参数可通过kwargs传递，如 n_estimators, max_depth, random_state 等
-    返回：sklearn的RandomForestClassifier实例
-    """
-    return RandomForestClassifier(**kwargs)
+
 
 # ====== 多层感知机神经网络 ======
 def mlp_model(**kwargs):
