@@ -66,28 +66,28 @@ def main():
     for name, metrics in results.items():
         print(f"{name}: 准确率={metrics['accuracy']:.4f}")
 
-    # # 针对每个模型做SHAP分析
-    # analyzer = SHAPAnalyzer(save_dir="results/shap")
-    # # 只裁剪样本数，不裁剪特征数，保证特征和训练一致
-    # shap_sample_num = 10  # 分析前10个样本
-    # shap_plot_types = ("bar", "summary", "interaction")  # 可选：bar, summary, interaction
-    # for name in model_names:
-    #     if name == "logistic_regression":
-    #         continue
-    #     model = None
-    #     from src.models import get_model
-    #     model = get_model(name)
-    #     model.fit(X_train, y_train)
-    #     # 判断模型类型
-    #     if name in ["random_forest", "decision_tree"]:
-    #         model_type = "tree"
-    #     else:
-    #         model_type = "kernel"
-    #     # 只取前N个样本，特征全部保留
-    #     shap_X = X_test.iloc[:shap_sample_num, :]
-    #     shap_feature_names = list(X.columns)
-    #     print(f"正在对{name}进行SHAP分析...（仅前{shap_sample_num}个样本，全部特征）")
-    #     analyzer.explain(model, shap_X, feature_names=shap_feature_names, model_type=model_type, plot_types=shap_plot_types)
+    # 针对每个模型做SHAP分析
+    analyzer = SHAPAnalyzer(save_dir="results/shap")
+    # 只裁剪样本数，不裁剪特征数，保证特征和训练一致
+    shap_sample_num = 10  # 分析前10个样本
+    shap_plot_types = ("bar", "summary", "interaction")  # 可选：bar, summary, interaction
+    for name in model_names:
+        if name == "logistic_regression":
+            continue
+        model = None
+        from src.models import get_model
+        model = get_model(name)
+        model.fit(X_train, y_train)
+        # 判断模型类型
+        if name in ["random_forest", "decision_tree"]:
+            model_type = "tree"
+        else:
+            model_type = "kernel"
+        # 只取前N个样本，特征全部保留
+        shap_X = X_test.iloc[:shap_sample_num, :]
+        shap_feature_names = list(X.columns)
+        print(f"正在对{name}进行SHAP分析...（仅前{shap_sample_num}个样本，全部特征）")
+        analyzer.explain(model, shap_X, feature_names=shap_feature_names, model_type=model_type, plot_types=shap_plot_types)
 
 if __name__ == "__main__":
     main()

@@ -31,21 +31,7 @@ class SHAPAnalyzer:
                 # 默认 KernelExplainer，并抽样背景数据
                 bg_size = min(100, X.shape[0])
                 background = shap.sample(X, bg_size)
-            try:
-                # 测试模型输出
-                test_pred = model.predict_proba(background[:1])
-                print(f"Model predict_proba output shape: {test_pred.shape}")
-                
-                explainer = shap.KernelExplainer(model.predict_proba, background)
-                # 减少样本数以加快计算
-                sample_size = min(50, X.shape[0])
-                X_sample = shap.sample(X, sample_size)
-                shap_values = explainer.shap_values(X_sample)
-                X = X_sample  # 更新X以匹配shap_values
-                
-            except Exception as e:
-                print(f"predict_proba failed, trying predict: {e}")
-                # 如果predict_proba失败，尝试使用predict
+                # test_pred = model.predict_proba(background[:1])
                 explainer = shap.KernelExplainer(model.predict, background)
                 sample_size = min(50, X.shape[0])
                 X_sample = shap.sample(X, sample_size)
