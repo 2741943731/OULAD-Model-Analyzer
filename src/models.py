@@ -399,17 +399,67 @@ def random_forest_model(**kwargs):
     else:
         return RandomForestClassifier(**kwargs)
 
+class CustomLogisticRegression:
+    def __init__(self, penalty='l2', C=1.0, solver='lbfgs', max_iter=100, tol=1e-4, learning_rate=0.1):
+        self.penalty = penalty
+        self.C = C
+        self.solver = solver
+        self.max_iter = max_iter
+        self.tol = tol
+        self.learning_rate = learning_rate
 
+    def _sigmoid(self, z):
+        # numerically stable sigmoid
+        return 0.5 * (1 + np.tanh(0.5 * z))
 
+    def fit(self, X, y):
+        X_mat = np.asarray(X, dtype=float)
+        y_vec = np.asarray(y, dtype=float)
+        n_samples, n_features = X_mat.shape
+        # 添加截距项
+        X_bias = np.hstack([np.ones((n_samples, 1), dtype=float), X_mat])
+        # 初始化权重
+        w = np.zeros(n_features + 1)
+        for i in range(self.max_iter):
+            z = X_bias.dot(w)
+            p = self._sigmoid(z)
+            # 梯度计算，加入 L2 正则
+            grad = (X_bias.T.dot(y_vec - p) - w / self.C) / float(n_samples)
+            w_new = w + self.learning_rate * grad
+            if np.linalg.norm(w_new - w, ord=1) < self.tol:
+                w = w_new
+                break
+            w = w_new
+        # 保存结果
+        self.coef_ = w[1:].reshape(1, -1).astype(float)
+        self.intercept_ = w[0]
+        return self
 
-# ====== 逻辑回归 =====
+    def predict_proba(self, X):
+        X_mat = np.asarray(X, dtype=float)
+        z = X_mat.dot(self.coef_.T) + self.intercept_
+        p = self._sigmoid(z)
+        return np.hstack([(1 - p), p])
+
+    def predict(self, X):
+        proba = self.predict_proba(X)[:, 1]
+        return (proba >= 0.5).astype(int)
+
+    def score(self, X, y):
+        """
+        计算准确率，与 sklearn 接口一致
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y_true)
+
 def logistic_regression_model(**kwargs):
     """
     自定义实现逻辑回归，参数与 sklearn 接口一致
     参数可通过 kwargs 传递，如 penalty, C, solver, max_iter 等
     """
-    # return CustomLogisticRegression(**kwargs)
-    return LogisticRegression(**kwargs)
+    return CustomLogisticRegression(**kwargs)
+    # return LogisticRegression(**kwargs)
 
 # ====== KNN分类器 ======
 def knn_model(**kwargs):
