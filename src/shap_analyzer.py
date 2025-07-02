@@ -101,6 +101,12 @@ class SHAPAnalyzer:
         if "summary" in plot_types or "beeswarm" in plot_types:
             plt.figure()
             shap.summary_plot(shap_values, X, feature_names=feature_names, show=False)
+            # 增加特征间垂直间距：根据特征数量调整图形高度，并扩展宽度以显示完整标签
+            fig = plt.gcf()
+            num_features = shap_values.shape[1]
+            fig.set_size_inches(10, max(6, 0.5 * num_features))  # 扩大宽度
+            plt.subplots_adjust(left=0.35)  # 增加左侧边距
+            plt.tight_layout(pad=2.0)
             plt.savefig(os.path.join(self.save_dir, "shap_beeswarm.png"))
             plt.close()
         # 特征依赖图
@@ -112,3 +118,42 @@ class SHAPAnalyzer:
                 plt.close()
 
         print(f"SHAP分析完成，图表已保存到: {self.save_dir}")
+    
+    def analyze_model(self, model, X, feature_names, model_name, label_type='label', plot_types=('bar','beeswarm','dependence')):
+        """
+        根据model_name自动选择SHAP解释器，生成对应目录下的图表并返回文件路径列表
+        """
+        # 设置专属输出目录
+        out_dir = os.path.join(self.save_dir, label_type, model_name)
+        os.makedirs(out_dir, exist_ok=True)
+        # 选Explainer
+        if model_name in ('random_forest','decision_tree'):
+            expl = shap.TreeExplainer(model)
+            sv = expl.shap_values(X)
+        elif model_name in ('mlp','lstm','rnn'):
+            # 需将数据转为Tensor
+            import torch
+            X_t = torch.tensor(X.values if hasattr(X, 'values') else X, dtype=torch.float32)
+            expl = shap.DeepExplainer(model, X_t)
+            sv = expl.shap_values(X_t)
+        else:
+            bg = shap.sample(X, min(100, X.shape[0]))
+            expl = shap.KernelExplainer(model.predict_proba, bg)
+            sv = expl.shap_values(X)
+        # 提取正类SHAP二维数组
+        if isinstance(sv, list) and len(sv) > 1:
+            shap_arr = sv[1]
+        else:
+            shap_arr = sv if not isinstance(sv, list) else sv[0]
+        if shap_arr.ndim > 2:
+            shap_arr = shap_arr.reshape(shap_arr.shape[0], -1)
+        # 使用专属目录暂存save_dir，调用generate_plots
+        old = self.save_dir
+        self.save_dir = out_dir
+        self.generate_plots(shap_arr, X, feature_names, plot_types)
+        self.save_dir = old
+        # 返回生成文件
+        files = []
+        for p in os.listdir(out_dir):
+            files.append(os.path.join(out_dir, p))
+        return files

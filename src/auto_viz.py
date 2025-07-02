@@ -84,15 +84,40 @@ def run_streamlit():
             json.dump(all_best, f, indent=4)
         st.success("超参数已保存到 best_params.json")
 
-    # 3. 特征重要性可解释性分析
+    # 4. 特征重要性可解释性分析
     st.header("特征重要性可解释性分析")
-    if st.button("训练并分析随机森林"):
-        model = get_model("random_forest")
+    # 选择模型并可选最优参数
+    model_shap = st.selectbox(
+        "选择模型进行 SHAP 分析",
+        ["random_forest", "decision_tree", "knn", "svm", "mlp", "logistic_regression"]
+    )
+    use_best_shap = st.checkbox("使用最优超参数 (from best_params.json)", key="shap_best")
+    if use_best_shap:
+        try:
+            import json
+            with open("src/best_params.json", "r") as f:
+                best_params = json.load(f)
+        except Exception:
+            best_params = {}
+        params_shap = best_params.get(model_shap, {})
+        st.write(f"当前参数: {params_shap}")
+        model = get_model(model_shap, **params_shap)
+    else:
+        model = get_model(model_shap)
+    if st.button("训练并分析", key="shap_analyze"):
         model.fit(X_train, y_train)
         analyzer = SHAPAnalyzer(save_dir="results/shap")
-        analyzer.explain(model, X_val, feature_names=list(X_train.columns), model_type="tree", plot_types=("bar", "summary"))
-        st.image("results/shap/shap_bar.png", caption="特征重要性条形图")
-        st.image("results/shap/shap_summary.png", caption="SHAP summary图")
+        # 根据树模型或其他模型选择解释方式
+        model_type = "tree" if model_shap in ("random_forest", "decision_tree") else "kernel"
+        analyzer.explain(
+            model,
+            X_val,
+            feature_names=list(X_train.columns),
+            model_type=model_type,
+            plot_types=("bar", "summary")
+        )
+        st.image("results/shap/shap_bar.png", caption="SHAP 条形图")
+        st.image("results/shap/shap_summary.png", caption="SHAP summary 图")
 
 if __name__ == "__main__":
     run_streamlit()

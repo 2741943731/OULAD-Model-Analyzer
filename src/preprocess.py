@@ -9,11 +9,15 @@ from sklearn.preprocessing import StandardScaler
 def load_data(data_dir="data/anonymisedData", n_weeks=4):
     """
     加载OULAD主要数据表，自动补全学生评估表的课程信息，融合多表特征。
+
     参数：
         data_dir (str): 数据文件夹路径，默认为 'data/anonymisedData'。
         n_weeks (int): 统计前n周的VLE行为特征，默认为4。
     返回：
         df (pd.DataFrame): 合并后的原始特征数据表。
+    合并键：
+        1. student_assessment 与 assessments 使用 'id_assessment' 关联；
+        2. student_info、student_registration、作业统计(sa_stats)和VLE统计(vle_stats)均使用 ['id_student', 'code_module', 'code_presentation'] 关联。
     """
     # 读取各表
     student_info = pd.read_csv(os.path.join(data_dir, "studentInfo.csv"))
@@ -58,6 +62,7 @@ def preprocess_data(df):
         df (pd.DataFrame): load_data 返回的合并原始数据表。
     返回：
         df (pd.DataFrame): 仅包含有效特征和标签的建模数据表，所有特征为数值型。
+    分类依据：根据 'final_result' 字段映射生成二值标签（Fail/Withdrawn=1，Pass/Distinction=0）。
     步骤：
         1. 去除无 final_result 的样本。
         2. 生成学业困难标签（Fail/Withdrawn=1，其余=0）。
