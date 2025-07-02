@@ -117,7 +117,8 @@ def run_streamlit():
             plot_types=("bar", "summary")
         )
         st.image("results/shap/shap_bar.png", caption="SHAP 条形图")
-        st.image("results/shap/shap_summary.png", caption="SHAP summary 图")
+        st.image("results/shap/shap_beeswarm.png", caption="SHAP 蜂群图")
+        # st.image("results/shap/shap_summary.png", caption="SHAP summary 图")
 
 if __name__ == "__main__":
     run_streamlit()
