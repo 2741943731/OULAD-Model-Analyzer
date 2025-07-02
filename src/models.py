@@ -484,7 +484,6 @@ class CustomKnn:
         X = np.asarray(X)
         n_samples = X.shape[0]
         n_classes = len(self.classes)
-        print(self.metric,self.n_neighbors,self.weights)
 
         if callable(self.metric):
             dist_func = self.metric
