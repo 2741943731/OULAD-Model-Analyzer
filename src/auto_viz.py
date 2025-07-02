@@ -106,6 +106,7 @@ def run_streamlit():
 
     # 4. 特征重要性可解释性分析
     st.header("特征重要性可解释性分析")
+
         # 模型选择方式
     if not st.session_state.trained_models:
         st.warning("没有已训练的模型，请先训练模型")
@@ -142,7 +143,6 @@ def run_streamlit():
                 except Exception as e:
                     st.error(f"分析过程中出现错误: {str(e)}")
                     st.info("某些模型类型可能需要更多的数据或不同的分析方法")
-    
-        
+
 if __name__ == "__main__":
     run_streamlit()
