@@ -137,6 +137,8 @@ def run_streamlit():
                     # 显示分析结果
                     if os.path.exists("results/shap/shap_bar.png"):
                         st.image("results/shap/shap_bar.png", caption="特征重要性条形图")
+                    if os.path.exists("results/shap/shap_beeswarm.png"):
+                        st.image("results/shap/shap_beeswarm.png", caption="SHAP beeswarm图")
                     if os.path.exists("results/shap/shap_summary.png"):
                         st.image("results/shap/shap_summary.png", caption="SHAP summary图")
                            
