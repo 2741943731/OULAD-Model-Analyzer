@@ -18,6 +18,7 @@ def prepare_data(test_size=0.2, random_state=42):
     y = df["label"]
     return train_test_split(X, y, test_size=test_size, random_state=random_state)
 
+# ====== 随机森林参数优化 ======
 def optimize_random_forest(X_train, X_val, y_train, y_val, n_trials=20):
     def objective(trial):
         params = {
