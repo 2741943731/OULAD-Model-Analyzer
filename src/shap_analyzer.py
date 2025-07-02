@@ -18,8 +18,10 @@ class SHAPAnalyzer:
         """
         try:
             print(f"Starting SHAP analysis: model_type={model_type}, data shape={getattr(X, 'shape', None)}")
+            # 检查是否是自定义模型
+            model_class_name = type(model).__name__
             # 选择 SHAP 解释器
-            if model_type == "tree":
+            if model_type == "tree" and "Custom" not in model_class_name:
                 explainer = shap.TreeExplainer(model)
                 shap_values = explainer.shap_values(X)
             elif model_type == "linear":
@@ -29,9 +31,27 @@ class SHAPAnalyzer:
                 # 默认 KernelExplainer，并抽样背景数据
                 bg_size = min(100, X.shape[0])
                 background = shap.sample(X, bg_size)
+            try:
+                # 测试模型输出
+                test_pred = model.predict_proba(background[:1])
+                print(f"Model predict_proba output shape: {test_pred.shape}")
+                
                 explainer = shap.KernelExplainer(model.predict_proba, background)
-                shap_values = explainer.shap_values(X)
-
+                # 减少样本数以加快计算
+                sample_size = min(50, X.shape[0])
+                X_sample = shap.sample(X, sample_size)
+                shap_values = explainer.shap_values(X_sample)
+                X = X_sample  # 更新X以匹配shap_values
+                
+            except Exception as e:
+                print(f"predict_proba failed, trying predict: {e}")
+                # 如果predict_proba失败，尝试使用predict
+                explainer = shap.KernelExplainer(model.predict, background)
+                sample_size = min(50, X.shape[0])
+                X_sample = shap.sample(X, sample_size)
+                shap_values = explainer.shap_values(X_sample)
+                X = X_sample
+                
             # 统一 shap_values 到二维数组
             if isinstance(shap_values, list):
                 # 二分类取第二个元素，否则取第一个
@@ -59,6 +79,18 @@ class SHAPAnalyzer:
         # 确保 shape 对齐
         if shap_values.shape[0] != X.shape[0]:
             raise ValueError(f"样本数不匹配: shap {shap_values.shape[0]} vs X {X.shape[0]}")
+        
+        # 确保特征数匹配
+        if shap_values.shape[1] != X.shape[1]:
+            print(f"Feature mismatch: truncating to min({shap_values.shape[1]}, {X.shape[1]})")
+            min_features = min(shap_values.shape[1], X.shape[1])
+            shap_values = shap_values[:, :min_features]
+            if hasattr(X, 'iloc'):
+                X = X.iloc[:, :min_features]
+            else:
+                X = X[:, :min_features]
+            feature_names = feature_names[:min_features]
+
         # 条形图
         if "bar" in plot_types:
             plt.figure()
