@@ -20,6 +20,11 @@ def prepare_data(test_size=0.2, random_state=42):
 
 def run_streamlit():
     st.title("模式识别")
+    
+    # 初始化 session_state
+    if 'trained_models' not in st.session_state:
+        st.session_state.trained_models = {}
+        
     X_train, X_val, y_train, y_val = prepare_data()
     st.write("数据集大小：", X_train.shape[0] + X_val.shape[0])
 
@@ -49,9 +54,24 @@ def run_streamlit():
     else:
         model = get_model(model_name)
     if st.button("训练并评估模型"):
-        model.fit(X_train, y_train)
-        acc = model.score(X_val, y_val)
+        with st.spinner(f'正在训练 {model_name} 模型，请稍候...'):
+            model.fit(X_train, y_train)
+            acc = model.score(X_val, y_val)
         st.success(f"{model_name} 验证集准确率: {acc:.4f}")
+        
+        # 保存训练好的模型到 session_state
+        st.session_state.trained_models[model_name] = {
+            'model': model,
+            'accuracy': acc,
+            'params': params if use_best else {}
+        }
+        st.info(f"模型 {model_name} 已保存，可在特征重要性分析中使用")
+    
+    # 显示已训练的模型
+    if st.session_state.trained_models:
+        st.subheader("已训练的模型")
+        for name, info in st.session_state.trained_models.items():
+            st.write(f"- {name}: 准确率 {info['accuracy']:.4f}")
     
     # 3. 超参数自动调参
     st.header("超参数自动调参 (Optuna)")
@@ -84,15 +104,45 @@ def run_streamlit():
             json.dump(all_best, f, indent=4)
         st.success("超参数已保存到 best_params.json")
 
-    # 3. 特征重要性可解释性分析
+    # 4. 特征重要性可解释性分析
     st.header("特征重要性可解释性分析")
-    if st.button("训练并分析随机森林"):
-        model = get_model("random_forest")
-        model.fit(X_train, y_train)
-        analyzer = SHAPAnalyzer(save_dir="results/shap")
-        analyzer.explain(model, X_val, feature_names=list(X_train.columns), model_type="tree", plot_types=("bar", "summary"))
-        st.image("results/shap/shap_bar.png", caption="特征重要性条形图")
-        st.image("results/shap/shap_summary.png", caption="SHAP summary图")
-
+        # 模型选择方式
+    if not st.session_state.trained_models:
+        st.warning("没有已训练的模型，请先训练模型")
+    else:
+        model_keys = list(st.session_state.trained_models.keys())
+        selected_model_key = st.selectbox("已训练的模型", model_keys)
+            
+        if st.button("分析特征重要性"):
+            model_info = st.session_state.trained_models[selected_model_key]
+            model = model_info['model']
+            model_name = selected_model_key.replace('_optimized', '')
+                
+            with st.spinner('正在分析特征重要性...'):
+                analyzer = SHAPAnalyzer(save_dir="results/shap")
+                model_type = model_info.get('model_type', 'tree')  # 默认使用树模型类型
+                 
+                try:
+                    analyzer.explain(
+                        model, 
+                        X_val, 
+                        feature_names=list(X_train.columns), 
+                        model_type=model_type, 
+                        plot_types=("bar", "summary")
+                    )
+                       
+                    st.success(f"分析完成！模型: {selected_model_key}, 准确率: {model_info['accuracy']:.4f}")
+                      
+                    # 显示分析结果
+                    if os.path.exists("results/shap/shap_bar.png"):
+                        st.image("results/shap/shap_bar.png", caption="特征重要性条形图")
+                    if os.path.exists("results/shap/shap_summary.png"):
+                        st.image("results/shap/shap_summary.png", caption="SHAP summary图")
+                           
+                except Exception as e:
+                    st.error(f"分析过程中出现错误: {str(e)}")
+                    st.info("某些模型类型可能需要更多的数据或不同的分析方法")
+    
+        
 if __name__ == "__main__":
     run_streamlit()
