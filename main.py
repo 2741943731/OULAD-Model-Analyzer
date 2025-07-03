@@ -69,7 +69,7 @@ def main():
     # 针对每个模型做SHAP分析
     analyzer = SHAPAnalyzer(save_dir="results/shap")
     # 只裁剪样本数，不裁剪特征数，保证特征和训练一致
-    shap_sample_num = 10  # 分析前10个样本
+    shap_sample_num = 5  # 分析前5个样本
     shap_plot_types = ("bar", "summary", "interaction")  # 可选：bar, summary, interaction
     for name in model_names:
         if name == "logistic_regression":

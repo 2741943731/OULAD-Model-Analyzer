@@ -223,7 +223,7 @@ class CustomRandomForest:
     支持关键参数调整：n_estimators, max_depth, min_samples_split, min_samples_leaf, max_features
     """
     def __init__(self, n_estimators=100, max_depth=None, min_samples_split=2,
-                 min_samples_leaf=1, max_features='sqrt', random_state=None):
+                 min_samples_leaf=1, max_features=None, random_state=None):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
