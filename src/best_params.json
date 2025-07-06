@@ -6,7 +6,7 @@
         "min_samples_leaf": 3
     },
     "logistic_regression": {
-        "C": 0.08523919310801689,
+        "C": 0.037773298764316426,
         "solver": "liblinear",
         "max_iter": 500
     },
@@ -17,7 +17,7 @@
         "min_samples_leaf": 3
     },
     "mlp": {
-        "n_units": 99,
+        "hidden_layer_sizes": [99],
         "activation": "relu",
         "alpha": 0.0021115322068797466,
         "solver": "adam",

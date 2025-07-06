@@ -64,7 +64,14 @@ def main():
     results = train_and_evaluate(X_train, y_train, X_test, y_test, model_names, best_params=best_params)
     print("各模型评估结果：")
     for name, metrics in results.items():
-        print(f"{name}: 准确率={metrics['accuracy']:.4f}")
+        print(f"模型：{name}")
+        print(f"  - 准确率：{metrics['accuracy']:.4f}")
+        print("  - 分类报告：")
+        for label, scores in metrics["report"].items():
+            if label in ["accuracy", "macro avg", "weighted avg"]:
+                continue
+            print(f"    类别 {label}: precision={scores['precision']:.2f}, recall={scores['recall']:.2f}, f1={scores['f1-score']:.2f}")
+        print()
 
     # 针对每个模型做SHAP分析
     analyzer = SHAPAnalyzer(save_dir="results/shap")
