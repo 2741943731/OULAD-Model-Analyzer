@@ -15,5 +15,12 @@
         "max_depth": 8,
         "min_samples_split": 3,
         "min_samples_leaf": 3
+    },
+    "mlp": {
+        "n_units": 99,
+        "activation": "relu",
+        "alpha": 0.0021115322068797466,
+        "solver": "adam",
+        "max_iter": 200
     }
 }
