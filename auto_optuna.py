@@ -18,7 +18,6 @@ def prepare_data(test_size=0.2, random_state=42):
     y = df["label"]
     return train_test_split(X, y, test_size=test_size, random_state=random_state)
 
-# ====== 随机森林参数优化 ======
 def optimize_random_forest(X_train, X_val, y_train, y_val, n_trials=20):
     def objective(trial):
         params = {
@@ -56,7 +55,7 @@ def optimize_knn(X_train, X_val, y_train, y_val, n_trials=20):
         params = {
             'n_neighbors': trial.suggest_int('n_neighbors', 1, 20),
             'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),
-            'metric': trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev']),
+            'metric': trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'minkowski']),
         }
         model = get_model("knn", **params)
         model.fit(X_train, y_train)
@@ -128,7 +127,8 @@ def main():
         ("mlp", optimize_mlp),
         ("random_forest", optimize_random_forest),
         ("logistic_regression", optimize_logistic_regression),
-        ("knn", optimize_knn)
+        ("knn", optimize_knn),
+        ("decision_tree", optimize_decision_tree),
     ]
     best_params_all = {}
     for name, func in optimizers:

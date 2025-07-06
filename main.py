@@ -4,8 +4,9 @@
 
 import os
 from src.preprocess import load_data, preprocess_data
-from src.train_eval import train_and_evaluate
 from src.shap_analyzer import SHAPAnalyzer
+from src.train_eval import train_and_evaluate
+
 
 import pandas as pd
 import os
